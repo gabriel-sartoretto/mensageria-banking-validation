@@ -1,5 +1,5 @@
 create table if not exists agencia(
-    id serial primary key,
+    id bigserial primary key,
     nome text not null,
     razao_social text not null,
     cnpj text not null,

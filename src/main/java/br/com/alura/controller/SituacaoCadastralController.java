@@ -9,6 +9,7 @@ import io.smallrye.common.annotation.NonBlocking;
 import io.smallrye.mutiny.Uni;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import org.jboss.resteasy.reactive.RestResponse;
 
@@ -30,6 +31,13 @@ public class SituacaoCadastralController {
     @NonBlocking
     public Uni<Void> cadastrar(Agencia agencia) {
         return this.situacaoCadastralRepository.persist(agencia).replaceWithVoid();
+    }
+
+    @PUT
+    @WithTransaction
+    @NonBlocking
+    public Uni<Void> alterar(Agencia agencia) {
+        return this.situacaoCadastralService.alterar(agencia).replaceWithVoid();
     }
 
     @GET
