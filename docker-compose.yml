@@ -1,16 +1,22 @@
 services:
-  banking-validation:
-    image: joao0212/banking-validation:v2
-    container_name: banking-validation-container
-    environment:
-      - QUARKUS_DATASOURCE_USERNAME=joao
-      - QUARKUS_DATASOURCE_PASSWORD=joao
-      - QUARKUS_DATASOURCE_HOST=postgres-db-alura
-      - QUARKUS_DATASOURCE_PORT=5432
-    ports:
-      - 8181:8181
-    depends_on:
-      - postgres-db-alura
+  # Comentado de propósito: a API banking-validation roda pela IDE (quarkus:dev) durante o desenvolvimento.
+  # Esta imagem (joao0212/banking-validation:v2) é uma versão pronta do curso, sem as alterações locais
+  # (ex.: o endpoint PUT /situacao-cadastral). Se ela subir junto, também ocupa a porta 8181 e as
+  # requisições para "localhost" caem nela (via IPv6), retornando 405 em vez de chegar no Quarkus da IDE.
+  # Descomente apenas se quiser rodar a API pelo Docker, e nesse caso não rode a API pela IDE.
+  #
+  # banking-validation:
+  #   image: joao0212/banking-validation:v2
+  #   container_name: banking-validation-container
+  #   environment:
+  #     - QUARKUS_DATASOURCE_USERNAME=joao
+  #     - QUARKUS_DATASOURCE_PASSWORD=joao
+  #     - QUARKUS_DATASOURCE_HOST=postgres-db-alura
+  #     - QUARKUS_DATASOURCE_PORT=5432
+  #   ports:
+  #     - 8181:8181
+  #   depends_on:
+  #     - postgres-db-alura
 
   postgres-db-alura:
     image: postgres:14
@@ -59,6 +65,17 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     depends_on:
       - zookeeper
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.4.3
+    container_name: schema-registry
+    depends_on:
+      - kafka
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:29092
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
 
 volumes:
   postgres_data:

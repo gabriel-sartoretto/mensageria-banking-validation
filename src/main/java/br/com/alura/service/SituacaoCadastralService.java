@@ -20,20 +20,20 @@ public class SituacaoCadastralService {
     private final Emitter<Audit> emitter;
 
     // Envio de mensagem pelo Kafka
-    private final MutinyEmitter<String> mutinyEmitter;
-    private final ObjectMapper objectMapper;
+    private final MutinyEmitter<br.com.alura.Agencia> mutinyEmitter;
+    //private final ObjectMapper objectMapper;
 
 
     public SituacaoCadastralService(
             SituacaoCadastralRepository situacaoCadastralRepository,
             @Channel("notificacoes") Emitter<Audit> emitter,
-            @Channel("remover-agencia-channel") MutinyEmitter<String> mutinyEmitter,
-            ObjectMapper objectMapper
+            @Channel("remover-agencia-channel") MutinyEmitter<br.com.alura.Agencia> mutinyEmitter
+            //ObjectMapper objectMapper
     ) {
         this.situacaoCadastralRepository = situacaoCadastralRepository;
         this.emitter = emitter;
         this.mutinyEmitter = mutinyEmitter;
-        this.objectMapper = objectMapper;
+        //this.objectMapper = objectMapper;
     }
 
     @WithTransaction
@@ -49,8 +49,14 @@ public class SituacaoCadastralService {
                 .call(() -> {
                     try {
                         if (agencia.getSituacaoCadastral().equals("INATIVO")) {
-                            String agenciaJson = objectMapper.writeValueAsString(agencia);
-                            return mutinyEmitter.send(agenciaJson);
+                            //Usado o objectMapper quando é enviado no formato Json
+                            //String agenciaJson = objectMapper.writeValueAsString(agencia);
+                            br.com.alura.Agencia agenciaConvertida = new br.com.alura.Agencia(
+                                    agencia.getNome(),
+                                    agencia.getRazaoSocial(),
+                                    agencia.getCnpj(),
+                                    agencia.getSituacaoCadastral());
+                            return mutinyEmitter.send(agenciaConvertida);
                         }
                         return Uni.createFrom().voidItem();
                     } catch (Exception e) {
