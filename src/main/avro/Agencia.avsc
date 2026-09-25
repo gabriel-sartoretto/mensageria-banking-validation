@@ -6,6 +6,7 @@
     { "name": "nome", "type": "string" },
     { "name": "razaoSocial", "type": "string" },
     { "name": "cnpj", "type": "string" },
-    { "name": "situacaoCadastral", "type": "string" }
+    { "name": "situacaoCadastral", "type": "string" },
+    { "name": "sagaId", "type": ["null", "string"], "default": null }
   ]
 }

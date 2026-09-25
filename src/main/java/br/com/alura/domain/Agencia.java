@@ -5,18 +5,6 @@ import jakarta.persistence.*;
 @Entity
 public class Agencia {
 
-    Agencia() {
-
-    }
-
-    Agencia(Long id, String nome, String razaoSocial, String cnpj, String situacaoCadastral) {
-        this.id = id;
-        this.nome = nome;
-        this.razaoSocial = razaoSocial;
-        this.cnpj = cnpj;
-        this.situacaoCadastral = situacaoCadastral;
-    }
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -28,6 +16,18 @@ public class Agencia {
 
     @Column(name = "situacao_cadastral")
     private String situacaoCadastral;
+
+    public Agencia() {
+
+    }
+
+    public Agencia(Long id, String nome, String razaoSocial, String cnpj, String situacaoCadastral) {
+        this.id = id;
+        this.nome = nome;
+        this.razaoSocial = razaoSocial;
+        this.cnpj = cnpj;
+        this.situacaoCadastral = situacaoCadastral;
+    }
 
     public Long getId() {
         return id;

@@ -6,5 +6,12 @@ create table if not exists agencia(
     situacao_cadastral text not null
 );
 
+create table if not exists saga(
+    id text primary key,
+    entidade text not null,
+    status text not null,
+    created_at timestamp not null
+);
+
 insert into agencia (nome, razao_social, cnpj, situacao_cadastral)
     values ('Agencia BSB', 'Asa Norte AGENCIA BSB', '15130254000100', 'ATIVO');
