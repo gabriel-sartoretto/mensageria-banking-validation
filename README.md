@@ -1,60 +1,75 @@
 # banking-validation
 
-This project uses Quarkus, the Supersonic Subatomic Java Framework.
+Microsserviço que mantém a **situação cadastral das agências** (ATIVO / INATIVO) e publica as mudanças para os
+demais serviços. É o producer de mensagens do sistema e o orquestrador da **saga** de remoção de agências.
 
-If you want to learn more about Quarkus, please visit its website: <https://quarkus.io/>.
+Faz parte do projeto [kafka-rabbitmq-banking](https://github.com/gabriel-sartoretto/kafka-rabbitmq-banking), junto com
+[banking-service](https://github.com/gabriel-sartoretto/mensageria-banking-service) e
+[banking-audit](https://github.com/gabriel-sartoretto/mensageria-banking-audit).
 
-## Running the application in dev mode
+**Stack:** Java 21 · Quarkus 3.29 · Hibernate Reactive Panache · PostgreSQL · RabbitMQ · Kafka + Avro/Schema Registry · Quarkus Scheduler
 
-You can run your application in dev mode that enables live coding using:
+## O que ele faz
 
-```shell script
-./mvnw compile quarkus:dev
+Quando a situação de uma agência muda (`PUT /situacao-cadastral`):
+
+1. Atualiza o banco **somente se a situação realmente mudou** (o `UPDATE` tem `situacaoCadastral <> ?`), então
+   requisições repetidas não geram efeitos duplicados.
+2. Envia uma mensagem de auditoria pelo **RabbitMQ** (exchange `notificacoes`, routing key `agencia.change_status`),
+   consumida pelo banking-audit.
+3. Se a agência ficou **INATIVO**, abre uma saga (`status = OPEN`, id UUID) e publica a agência no **Kafka**
+   (tópico `remover-agencia-avro`, formato Avro com o `sagaId`), consumida pelo banking-service, que remove a agência
+   e depois chama `/saga/*` aqui para fechar a saga.
+4. Um job (`SagaResyncService`, a cada 10s) reenvia ao Kafka as sagas que continuam `OPEN` há mais de 2 minutos.
+
+Status possíveis da saga: `OPEN`, `COMPLETED` (removida), `IGNORED` (agência já não existia), `ERROR`.
+
+## Endpoints (porta 8181)
+
+| Método | Caminho | Descrição |
+|---|---|---|
+| `POST` | `/situacao-cadastral` | Cadastra uma agência |
+| `GET` | `/situacao-cadastral` | Lista todas |
+| `GET` | `/situacao-cadastral/{cnpj}` | Busca por CNPJ (204 se não existir). Usado pelo banking-service |
+| `PUT` | `/situacao-cadastral` | Altera a situação (dispara RabbitMQ e, se INATIVO, Kafka + saga) |
+| `PUT` | `/saga/sucesso` · `/saga/ignorada` · `/saga/erro` | Fecha a saga; o body é o id da saga |
+
+Exemplo:
+
+```bash
+curl -X PUT localhost:8181/situacao-cadastral -H "Content-Type: application/json" \
+  -d '{"id":1,"nome":"Agencia BSB","razaoSocial":"Asa Norte AGENCIA BSB","cnpj":"15130254000100","situacaoCadastral":"INATIVO"}'
 ```
 
-> **_NOTE:_**  Quarkus now ships with a Dev UI, which is available in dev mode only at <http://localhost:8080/q/dev/>.
+## Rodando localmente
 
-## Packaging and running the application
+O `docker-compose.yml` deste repositório sobe **a infraestrutura de todo o projeto**:
 
-The application can be packaged using:
+| Serviço | Porta |
+|---|---|
+| PostgreSQL (banco `agencia`, com as tabelas `agencia` e `saga` do `init.sql`) | 5432 |
+| RabbitMQ (management em http://localhost:15672, guest/guest) | 5672 / 15672 |
+| Zookeeper | 2181 |
+| Kafka | 9092 |
+| Schema Registry | 8081 |
 
-```shell script
-./mvnw package
+```bash
+docker compose up -d
+./mvnw quarkus:dev
 ```
 
-It produces the `quarkus-run.jar` file in the `target/quarkus-app/` directory.
-Be aware that it’s not an _über-jar_ as the dependencies are copied into the `target/quarkus-app/lib/` directory.
+> O container da própria API (`joao0212/banking-validation:v2`) está comentado no compose de propósito: é a imagem
+> do curso, sem as alterações locais, e ocuparia a porta 8181. Rode a API pela IDE ou pelo `quarkus:dev`.
 
-The application is now runnable using `java -jar target/quarkus-app/quarkus-run.jar`.
+## Schema Avro
 
-If you want to build an _über-jar_, execute the following command:
+`src/main/avro/Agencia.avsc` gera a classe `br.com.alura.Agencia`. O mesmo arquivo existe no banking-service:
+qualquer mudança precisa ser feita **nos dois** e manter compatibilidade (novos campos com `default`, como `sagaId`).
 
-```shell script
+## Build
+
+```bash
+./mvnw package                                  # target/quarkus-app/quarkus-run.jar
 ./mvnw package -Dquarkus.package.jar.type=uber-jar
+./mvnw package -Dnative                         # executável nativo (requer GraalVM)
 ```
-
-The application, packaged as an _über-jar_, is now runnable using `java -jar target/*-runner.jar`.
-
-## Creating a native executable
-
-You can create a native executable using:
-
-```shell script
-./mvnw package -Dnative
-```
-
-Or, if you don't have GraalVM installed, you can run the native executable build in a container using:
-
-```shell script
-./mvnw package -Dnative -Dquarkus.native.container-build=true
-```
-
-You can then execute your native executable with: `./target/banking-validation-1.0.0-SNAPSHOT-runner`
-
-If you want to learn more about building native executables, please consult <https://quarkus.io/guides/maven-tooling>.
-
-## Related Guides
-
-- REST Jackson ([guide](https://quarkus.io/guides/rest#json-serialisation)): Jackson serialization support for Quarkus REST. This extension is not compatible with the quarkus-resteasy extension, or any of the extensions that depend on it
-- Hibernate ORM with Panache ([guide](https://quarkus.io/guides/hibernate-orm-panache)): Simplify your persistence code for Hibernate ORM via the active record or the repository pattern
-- JDBC Driver - PostgreSQL ([guide](https://quarkus.io/guides/datasource)): Connect to the PostgreSQL database via JDBC
